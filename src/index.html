@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="module">
+import { zig } from "./mach-sysjs.js";
+
+let imports = { zig };
+
+fetch("/bin/webaudio-shared-memory.wasm")
+    .then(response => response.arrayBuffer())
+    .then(buffer => WebAssembly.instantiate(buffer, imports))
+    .then(results => results.instance)
+    .then(instance => {
+      zig.init(instance);
+      instance.exports._start();
+    })
+    .catch(err => console.error(err));
+</script>
+</head>
+
+<body>
+</body>
+</html>
