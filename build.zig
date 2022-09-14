@@ -1,7 +1,7 @@
 const std = @import("std");
-const wasmserve = @import("libs/wasmserve/wasmserve.zig");
+const wasmserve = @import("libs/mach/tools/wasmserve/wasmserve.zig");
 
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.build.Builder) !void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -39,15 +39,15 @@ pub fn build(b: *std.build.Builder) void {
     const install_index = b.addInstallFile(.{ .path = "src/index.html" }, "index.html");
     b.getInstallStep().dependOn(&install_index.step);
 
-    const serve_step = wasmserve.serve(exe, ".", .{
+    const serve_step = try wasmserve.serve(exe, .{
         .watch_paths = &.{
             "src/main.zig",
             "src/index.html",
             "libs/sysjs/src/mach-sysjs.js",
             "src/audio_worklet.js",
         },
-        .serve_path = "zig-out/",
-    }) catch unreachable;
+        .install_dir = .prefix,
+    });
     const run_step = b.step("run", "Run development web server");
     run_step.dependOn(&serve_step.step);
 
