@@ -45,6 +45,14 @@ class MemoryBlock {
   }
 
   getString(offset, len) {
+    if (this.mem instanceof SharedArrayBuffer) {
+      // Copy slice out of SharedArrayBuffer state, as the TextDecoder API does not support SharedArrayBuffer
+      // as of 2022-09-13
+      const slice = new Uint8Array(len);
+      slice.set(new Uint8Array(this.mem, offset, len));
+      const text = text_decoder.decode(slice);
+      return text;
+    }
     return text_decoder.decode(new Uint8Array(this.mem, offset, len));
   }
 
@@ -78,8 +86,13 @@ const zig = {
   wasm: undefined,
   buffer: undefined,
 
-  init(wasm) {
+  init(wasm, memory) {
     this.wasm = wasm;
+    if (memory) {
+      this.memory = memory;
+    } else {
+      this.memory = this.wasm.exports.memory;
+    }
 
     values = [];
     value_map = {};
@@ -108,7 +121,7 @@ const zig = {
   },
 
   zigCreateString(str, len) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     return zig.addValue(memory.getString(str, len));
   },
 
@@ -220,17 +233,17 @@ const zig = {
   },
 
   getProperty(prop, ret_ptr) {
-    return zig.getPropertyEx(prop, zig.wasm.exports.memory.buffer, ret_ptr);
+    return zig.getPropertyEx(prop, zig.memory.buffer, ret_ptr);
   },
 
   zigGetProperty(id, name, len, ret_ptr) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     let prop = values[id][memory.getString(name, len)];
     zig.getProperty(prop, ret_ptr);
   },
 
   zigSetProperty(id, name, len, set_ptr) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     values[id][memory.getString(name, len)] = zig.readObject(
       memory.slice(set_ptr),
       memory
@@ -238,7 +251,7 @@ const zig = {
   },
 
   zigDeleteProperty(id, name, len) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     delete values[id][memory.getString(name, len)];
   },
 
@@ -248,7 +261,7 @@ const zig = {
   },
 
   zigSetIndex(id, index, set_ptr) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     values[id][index] = zig.readObject(memory.slice(set_ptr), memory);
   },
 
@@ -257,7 +270,7 @@ const zig = {
   },
 
   zigCopyBytes(id, bytes, expected_length) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     const array = values[id];
     if (array.length != expected_length) {
       throw Error("copyBytes given array of length " + expected_length + " but destination has length " + array.length);
@@ -283,26 +296,26 @@ const zig = {
   },
 
   zigGetString(val_id, ptr) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     memory.setString(ptr, values[value_map[val_id]]);
   },
 
   zigValueEqual(val, other) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     const val_js = zig.readObject(memory.slice(val), memory);
     const other_js = zig.readObject(memory.slice(other), memory);
     return val_js === other_js;
   },
 
   zigValueInstanceOf(val, other) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     const val_js = zig.readObject(memory.slice(val), memory);
     const other_js = zig.readObject(memory.slice(other), memory);
     return val_js instanceof other_js;
   },
 
   functionCall(func, this_param, args, args_len, ret_ptr) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     let argv = [];
     for (let i = 0; i < args_len; i += 1) {
       argv.push(zig.readObject(memory.slice(args + i * 16), memory));
@@ -327,7 +340,7 @@ const zig = {
   },
 
   zigFunctionCall(id, name, len, args, args_len, ret_ptr) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     zig.functionCall(
       values[id][memory.getString(name, len)],
       values[id],
@@ -346,7 +359,7 @@ const zig = {
   },
 
   zigConstructType(id, args, args_len) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     let argv = [];
     for (let i = 0; i < args_len; i += 1) {
       argv.push(zig.readObject(memory.slice(args + i * 16), memory));
@@ -356,7 +369,7 @@ const zig = {
   },
 
   wzLogWrite(str, len) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     log_buf += memory.getString(str, len);
   },
 
@@ -366,7 +379,7 @@ const zig = {
   },
 
   wzPanic(str, len) {
-    let memory = new MemoryBlock(zig.wasm.exports.memory.buffer);
+    let memory = new MemoryBlock(zig.memory.buffer);
     throw Error(memory.getString(str, len));
   },
 };

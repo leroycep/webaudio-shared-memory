@@ -1,23 +1,29 @@
 <!DOCTYPE html>
 <html>
-<head>
+<body>
+
+<!-- Load webassembly after the rest of the page has loaded--->
 <script type="module">
 import { zig } from "./mach-sysjs.js";
 
-let imports = { zig };
+let env = {
+  memory: new WebAssembly.Memory({
+    initial: 17,
+    maximum: 17,
+    shared: true,
+  }),
+};
 
-fetch("/bin/webaudio-shared-memory.wasm")
-    .then(response => response.arrayBuffer())
-    .then(buffer => WebAssembly.instantiate(buffer, imports))
-    .then(results => results.instance)
-    .then(instance => {
-      zig.init(instance);
-      instance.exports._start();
-    })
-    .catch(err => console.error(err));
+let imports = { zig, env };
+
+WebAssembly
+  .instantiateStreaming(fetch("/bin/webaudio-shared-memory.wasm"), imports)
+  .then(({ module, instance }) => {
+    zig.init(instance, env.memory);
+    instance.exports._start();
+  })
+  .catch(err => console.error(err));
 </script>
-</head>
-
-<body>
 </body>
+
 </html>

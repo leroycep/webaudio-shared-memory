@@ -23,9 +23,6 @@
         packages = [
           pkgs.zigpkgs.master
 
-          pkgs.python3Packages.livereload
-          pkgs.entr
-
           pkgs.wabt
 
           pkgs.libsoundio
