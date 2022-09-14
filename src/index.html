@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <body>
+<button id="play-sine-wave">Play sine wave</button>
 
 <!-- Load webassembly after the rest of the page has loaded--->
 <script type="module">
@@ -16,13 +17,29 @@ let env = {
 
 let imports = { zig, env };
 
+let wasm_module = null;
 WebAssembly
   .instantiateStreaming(fetch("/bin/webaudio-shared-memory.wasm"), imports)
   .then(({ module, instance }) => {
+    wasm_module = module;
     zig.init(instance, env.memory);
     instance.exports._start();
   })
   .catch(err => console.error(err));
+
+let audio = null;
+async function play_sine_wave() {
+  audio = new AudioContext();
+  await audio.audioWorklet.addModule("/audio_worklet.js");
+  
+  const worklet = new AudioWorkletNode(audio, "WasmProcessor", { processorOptions: {
+    memory: env.memory,
+    module: wasm_module,
+  }});
+  worklet.connect(audio.destination);
+}
+
+document.querySelector("button#play-sine-wave").addEventListener("click", play_sine_wave);
 </script>
 </body>
 

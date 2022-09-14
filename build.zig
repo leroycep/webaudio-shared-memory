@@ -33,6 +33,9 @@ pub fn build(b: *std.build.Builder) void {
     const install_sysjs = b.addInstallFile(.{ .path = "libs/sysjs/src/mach-sysjs.js" }, "mach-sysjs.js");
     b.getInstallStep().dependOn(&install_sysjs.step);
 
+    const install_audio_worklet_js = b.addInstallFile(.{ .path = "src/audio_worklet.js" }, "audio_worklet.js");
+    b.getInstallStep().dependOn(&install_audio_worklet_js.step);
+
     const install_index = b.addInstallFile(.{ .path = "src/index.html" }, "index.html");
     b.getInstallStep().dependOn(&install_index.step);
 
@@ -41,6 +44,7 @@ pub fn build(b: *std.build.Builder) void {
             "src/main.zig",
             "src/index.html",
             "libs/sysjs/src/mach-sysjs.js",
+            "src/audio_worklet.js",
         },
         .serve_path = "zig-out/",
     }) catch unreachable;
