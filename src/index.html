@@ -18,10 +18,13 @@ let env = {
 let imports = { zig, env };
 
 let wasm_module = null;
+let wasm_instance = null;
 WebAssembly
   .instantiateStreaming(fetch("/bin/webaudio-shared-memory.wasm"), imports)
   .then(({ module, instance }) => {
     wasm_module = module;
+    wasm_instance = instance;
+
     zig.init(instance, env.memory);
     instance.exports._start();
   })
@@ -29,14 +32,17 @@ WebAssembly
 
 let audio = null;
 async function play_sine_wave() {
-  audio = new AudioContext();
-  await audio.audioWorklet.addModule("/audio_worklet.js");
+  if (!audio) {
+    audio = new AudioContext();
+    await audio.audioWorklet.addModule("/audio_worklet.js");
   
-  const worklet = new AudioWorkletNode(audio, "WasmProcessor", { processorOptions: {
-    memory: env.memory,
-    module: wasm_module,
-  }});
-  worklet.connect(audio.destination);
+    const worklet = new AudioWorkletNode(audio, "WasmProcessor", { processorOptions: {
+      memory: env.memory,
+      module: wasm_module,
+    }});
+    worklet.connect(audio.destination);
+  }
+  wasm_instance.exports.playSineWave(audio.currentTime);
 }
 
 document.querySelector("button#play-sine-wave").addEventListener("click", play_sine_wave);
